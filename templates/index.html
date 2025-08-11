@@ -1,44 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>LED Control</title>
+  <title>Pico W LED Control</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
-    <h1>LED Control</h1>
-    <button id="onBtn">LED ON</button>
-    <button id="offBtn">LED OFF</button>
-    <p id="status">LED State: UNKNOWN</p>
+  <h1>Control Pico W LED</h1>
+  <button onclick="ledOn()">LED ON</button>
+  <button onclick="ledOff()">LED OFF</button>
 
-    <script>
-        // Build WS URL dynamically to match Render's deployment (https → wss, http → ws)
-        const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
-        const wsUrl = wsProtocol + window.location.host + "/ws";
-        const ws = new WebSocket(wsUrl);
+  <script>
+    const socket = io();
 
-        ws.onopen = () => {
-            console.log("Connected to server");
-            ws.send(JSON.stringify({ type: "get_state" }));
-        };
+    function ledOn() {
+      socket.emit('led', 'on');
+    }
 
-        ws.onmessage = (event) => {
-            console.log("Message from server:", event.data);
-            try {
-                const data = JSON.parse(event.data);
-                if (data.type === "state") {
-                    document.getElementById("status").textContent = "LED State: " + data.state;
-                }
-            } catch (e) {
-                console.error("Invalid JSON:", e);
-            }
-        };
-
-        document.getElementById("onBtn").onclick = () => {
-            ws.send(JSON.stringify({ type: "toggle", state: "ON" }));
-        };
-
-        document.getElementById("offBtn").onclick = () => {
-            ws.send(JSON.stringify({ type: "toggle", state: "OFF" }));
-        };
-    </script>
+    function ledOff() {
+      socket.emit('led', 'off');
+    }
+  </script>
 </body>
 </html>
