@@ -1,3 +1,4 @@
+import os
 import asyncio
 import aiohttp.web
 import pathlib
@@ -29,4 +30,5 @@ app.router.add_get("/", index)
 app.router.add_get("/ws", websocket_handler)
 
 if __name__ == "__main__":
-    aiohttp.web.run_app(app, host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 8080))  # Render assigns PORT automatically
+    aiohttp.web.run_app(app, host="0.0.0.0", port=port)
