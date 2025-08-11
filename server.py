@@ -1,53 +1,49 @@
 import os
 import asyncio
-import json
 from aiohttp import web
 
-PORT = int(os.environ.get("PORT", 8000))
-HOST = "0.0.0.0"
-
-# LED state variable
-led_state = "OFF"
-
-# HTTP handler
-async def http_handler(request):
-    return web.Response(text="OK")
+# Store LED state in memory (for simplicity)
+led_state = {"status": "off"}
+clients = set()
 
 # WebSocket handler
-async def ws_route_handler(request):
-    global led_state
+async def websocket_handler(request):
     ws = web.WebSocketResponse()
     await ws.prepare(request)
-    print("WebSocket connected")
+    clients.add(ws)
+
+    # Send current state to new client
+    await ws.send_json(led_state)
 
     async for msg in ws:
         if msg.type == web.WSMsgType.TEXT:
-            try:
-                data = json.loads(msg.data)
-            except json.JSONDecodeError:
-                continue
+            data = msg.json()
+            # Update LED state
+            if "status" in data:
+                led_state["status"] = data["status"]
 
-            if data.get("type") == "get_state":
-                await ws.send_str(json.dumps({"type": "state", "state": led_state}))
+                # Broadcast to all clients
+                for client in clients:
+                    if not client.closed:
+                        await client.send_json(led_state)
 
-            elif data.get("type") == "toggle":
-                led_state = data.get("state", led_state)
-                await ws.send_str(json.dumps({"type": "state", "state": led_state}))
+        elif msg.type == web.WSMsgType.ERROR:
+            print(f"WebSocket connection closed with exception {ws.exception()}")
 
-    print("WebSocket closed")
+    clients.remove(ws)
     return ws
 
-async def main():
-    app = web.Application()
-    app.router.add_get("/", http_handler)
-    app.router.add_get("/ws", ws_route_handler)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, HOST, PORT)
-    await site.start()
-    print(f"Server running on {HOST}:{PORT}")
-    while True:
-        await asyncio.sleep(3600)
+# HTTP handler (serves HTML file)
+async def index_handler(request):
+    return web.FileResponse("templates/index.html")
 
+# Create app
+app = web.Application()
+app.router.add_get("/", index_handler)
+app.router.add_get("/ws", websocket_handler)
+app.router.add_static("/static", "static")  # if you have CSS/JS
+
+# Render uses dynamic port
 if __name__ == "__main__":
-    asyncio.run(main())
+    port = int(os.environ.get("PORT", 5000))
+    web.run_app(app, host="0.0.0.0", port=port)
