@@ -1,33 +1,32 @@
-import os
 import asyncio
-from aiohttp import web
+import aiohttp.web
+import pathlib
 
-PORT = int(os.environ.get("PORT", 8000))
-HOST = "0.0.0.0"
+BASE_DIR = pathlib.Path(__file__).parent
 
-# --- Serve index.html ---
 async def index(request):
-    return web.FileResponse("index.html")
+    return aiohttp.web.FileResponse(BASE_DIR / "index.html")
 
-# --- WebSocket handler ---
-async def ws_handler(request):
-    ws = web.WebSocketResponse()
+async def websocket_handler(request):
+    ws = aiohttp.web.WebSocketResponse()
     await ws.prepare(request)
-    print("WebSocket connected")
 
-    async for msg in ws:
-        if msg.type == web.WSMsgType.TEXT:
-            print(f"Received: {msg.data}")
-            await ws.send_str(f"Echo: {msg.data}")
-    print("WebSocket closed")
+    print("WebSocket connection opened")
+    try:
+        async for msg in ws:
+            if msg.type == aiohttp.WSMsgType.TEXT:
+                print(f"Message from client: {msg.data}")
+                await ws.send_str(f"Echo: {msg.data}")
+            elif msg.type == aiohttp.WSMsgType.ERROR:
+                print(f"WebSocket connection closed with exception {ws.exception()}")
+    finally:
+        print("WebSocket connection closed")
+
     return ws
 
-# --- App setup ---
-def create_app():
-    app = web.Application()
-    app.router.add_get("/", index)
-    app.router.add_get("/ws", ws_handler)
-    return app
+app = aiohttp.web.Application()
+app.router.add_get("/", index)
+app.router.add_get("/ws", websocket_handler)
 
 if __name__ == "__main__":
-    web.run_app(create_app(), host=HOST, port=PORT)
+    aiohttp.web.run_app(app, host="0.0.0.0", port=10000)
