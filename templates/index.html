@@ -10,7 +10,10 @@
     <p id="status">LED State: UNKNOWN</p>
 
     <script>
-        const ws = new WebSocket("ws://" + window.location.hostname + ":5000");
+        // Build WS URL dynamically to match Render's deployment (https → wss, http → ws)
+        const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+        const wsUrl = wsProtocol + window.location.host + "/ws";
+        const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
             console.log("Connected to server");
@@ -18,9 +21,14 @@
         };
 
         ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.type === "state") {
-                document.getElementById("status").textContent = "LED State: " + data.state;
+            console.log("Message from server:", event.data);
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === "state") {
+                    document.getElementById("status").textContent = "LED State: " + data.state;
+                }
+            } catch (e) {
+                console.error("Invalid JSON:", e);
             }
         };
 
