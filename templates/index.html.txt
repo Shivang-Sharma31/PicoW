@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pico W LED Control</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+  <h1>Control Pico W LED</h1>
+  <button onclick="ledOn()">LED ON</button>
+  <button onclick="ledOff()">LED OFF</button>
+
+  <script>
+    const socket = io();
+
+    function ledOn() {
+      socket.emit('led', 'on');
+    }
+
+    function ledOff() {
+      socket.emit('led', 'off');
+    }
+  </script>
+</body>
+</html>
