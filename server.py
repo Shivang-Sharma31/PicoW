@@ -1,26 +1,34 @@
-from flask import Flask, render_template
-from flask_socketio import SocketIO, emit
+import asyncio
+import websockets
+import json
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key'
-socketio = SocketIO(app, cors_allowed_origins="*")
+led_state = "OFF"
+clients = set()
 
-led_state = "OFF"  # global LED state
-
-@app.route('/')
-def index():
-    return render_template('index.html', state=led_state)
-
-@socketio.on('toggle_led')
-def handle_led_toggle(data):
+async def handler(websocket):
     global led_state
-    led_state = data['state']
-    print(f"LED set to {led_state}")
-    emit('led_state', {'state': led_state}, broadcast=True)
+    clients.add(websocket)
+    try:
+        async for message in websocket:
+            try:
+                data = json.loads(message)
+                if data.get("type") == "toggle":
+                    led_state = data.get("state", "OFF")
+                    print(f"LED set to {led_state}")
+                    await asyncio.gather(
+                        *[ws.send(json.dumps({"type": "state", "state": led_state})) for ws in clients]
+                    )
+                elif data.get("type") == "get_state":
+                    await websocket.send(json.dumps({"type": "state", "state": led_state}))
+            except json.JSONDecodeError:
+                print("Invalid message:", message)
+    finally:
+        clients.remove(websocket)
 
-@socketio.on('get_led_state')
-def handle_get_led_state():
-    emit('led_state', {'state': led_state})
+async def main():
+    async with websockets.serve(handler, "0.0.0.0", 5000):
+        print("WebSocket server running at ws://0.0.0.0:5000")
+        await asyncio.Future()
 
-if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    asyncio.run(main())

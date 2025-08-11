@@ -1,24 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Pico W LED Control</title>
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <title>LED Control</title>
 </head>
 <body>
-  <h1>Control Pico W LED</h1>
-  <button onclick="ledOn()">LED ON</button>
-  <button onclick="ledOff()">LED OFF</button>
+    <h1>LED Control</h1>
+    <button id="onBtn">LED ON</button>
+    <button id="offBtn">LED OFF</button>
+    <p id="status">LED State: UNKNOWN</p>
 
-  <script>
-    const socket = io();
+    <script>
+        const ws = new WebSocket("ws://" + window.location.hostname + ":5000");
 
-    function ledOn() {
-      socket.emit('led', 'on');
-    }
+        ws.onopen = () => {
+            console.log("Connected to server");
+            ws.send(JSON.stringify({ type: "get_state" }));
+        };
 
-    function ledOff() {
-      socket.emit('led', 'off');
-    }
-  </script>
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === "state") {
+                document.getElementById("status").textContent = "LED State: " + data.state;
+            }
+        };
+
+        document.getElementById("onBtn").onclick = () => {
+            ws.send(JSON.stringify({ type: "toggle", state: "ON" }));
+        };
+
+        document.getElementById("offBtn").onclick = () => {
+            ws.send(JSON.stringify({ type: "toggle", state: "OFF" }));
+        };
+    </script>
 </body>
 </html>
